@@ -109,13 +109,11 @@ Class Board {
      **/
     getTile(row := 0, col := 0, num := 0) {
         for head in this.tile {
-            if (row && col) {
-                if (head.row = row && head.col = col) {
-                    return head
-                }
+            if (head.num = num) {
+                return head
             }
 
-            if (head.num = num) {
+            if (head.row = row && head.col = col) {
                 return head
             }
         }
@@ -375,11 +373,11 @@ Class Board {
                     newBoard := currentBoard.makeCopy()
                     newMoveList := MoveQueue(currentMoves.moveList)
 
-                    ;pathfind if blank tile isnt already in the destination. 
+                    ;pathfind if blank tile isnt already in the destination.
                     if (neighborTile.num != newBoard.blankTile.num) {
                         pathFind(neighborTile.row, neighborTile.col, &newMoveList, &newBoard, singleTile)
                     }
-                    
+
                     ;move blanktile into singleTile. then check if the resulting board is on the list of visited board states.
                     ;if it isnt, then add it to both that list and the queue
                     newBoard.move(getOppositeDirection(direction), newMoveList)
@@ -653,7 +651,7 @@ pathFind(pathToRow, pathToCol, &moveList, &boardState, obstacle) {
                 } else {
                     newProgressMod--
                 }
-            }else if (direction = DOWN_DIRECTION) {
+            } else if (direction = DOWN_DIRECTION) {
 
                 ;make sure it isnt below the destination
                 if (downFromDest) {
@@ -677,7 +675,7 @@ pathFind(pathToRow, pathToCol, &moveList, &boardState, obstacle) {
                 } else {
                     newProgressMod--
                 }
-            }else if (direction = LEFT_DIRECTION) {
+            } else if (direction = LEFT_DIRECTION) {
 
                 ;make sure it isnt left of the destination
                 if (leftFromDest) {
@@ -701,7 +699,7 @@ pathFind(pathToRow, pathToCol, &moveList, &boardState, obstacle) {
                 } else {
                     newProgressMod--
                 }
-            }else if (direction = RIGHT_DIRECTION) {
+            } else if (direction = RIGHT_DIRECTION) {
 
                 ;make sure it isnt left of the destination
                 if (rightFromDest) {
