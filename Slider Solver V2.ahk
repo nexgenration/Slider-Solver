@@ -257,15 +257,10 @@ Class Board {
         height := this.height
         width := this.width
         boardArray := []
-
-        row := 1
-        while (row <= height) {
-            col := 1
-            while (col <= width) {
-                boardArray.Push(this.getTile(row, col).num)
-                col++
-            }
-            row++
+        boardArray.Length := width * height
+        
+        for head in this.tile{
+            boardArray[head.col + ((head.row - 1) * width)] := head.num
         }
 
         return Board(height, width, boardArray)
