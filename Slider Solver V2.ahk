@@ -165,8 +165,8 @@ Class Board {
             if (i != atile.num) {
                 return false
             }
-            return true
         }
+        return true
     }
 
     /**Takes a tile object and a direction and returns the tile object for the tile in that direction.
@@ -258,8 +258,8 @@ Class Board {
         width := this.width
         boardArray := []
         boardArray.Length := width * height
-        
-        for head in this.tile{
+
+        for head in this.tile {
             boardArray[head.col + ((head.row - 1) * width)] := head.num
         }
 
@@ -321,12 +321,9 @@ Class Board {
     solveBoard() {
         ;make a queue, list of visited board states, and a board string
         boardStateQueue := []
-        visitedBoards := {}
-        initialBoardString := this.buildBoardString()
 
         ;add current board state to the queue and list of visited board states
-        boardStateQueue.Push({ board: this, moves: MoveQueue() })
-        visitedBoards.initialBoardString := true
+        boardStateQueue.Push({ board: this, moves: MoveQueue(), mistakes: 0 })
 
         ;loop through each board state on a first-in-first-out basis. this ensures the shortest path is always found
         while (boardStateQueue.Length > 0) {
@@ -336,51 +333,55 @@ Class Board {
             boardStateQueue.RemoveAt(1)
             currentBoard := currentState.board
             currentMoves := currentState.moves
+            currentMistakes := currentState.mistakes
 
             ;check if the board state that was just grabbed is solved
             if (currentBoard.isBoardSolved()) {
                 return currentMoves
             }
 
-            ;itterate through all the tiles that can be moved
-            for singleTile in currentBoard.tile {
+            ;iterate through all the possible moves that can be made from the board state that was just grabbed
+            for direction in [RIGHT_DIRECTION, DOWN_DIRECTION, LEFT_DIRECTION, UP_DIRECTION] {
+                neighborTile := currentBoard.getTileNeighbor(currentBoard.blankTile, direction)
 
-                ;skip the tile if it is the blank tile
-                if (singleTile.num = currentBoard.blankTile.num) {
+                ;skip the direction if neighboring tile is out of bounds
+                if (!neighborTile) {
                     continue
                 }
 
-                ;skip the tile if it is in the correct spot
-                if (singleTile.isTileSolved()) {
+                ;skip the direction if direction is the oposite of the last move's direction
+                if (direction = getOppositeDirection(currentMoves.getLastMove())) {
                     continue
                 }
 
-                ;iterate through all the possible moves that can be made from the board state that was just grabbed
-                for direction in [RIGHT_DIRECTION, DOWN_DIRECTION, LEFT_DIRECTION, UP_DIRECTION] {
-                    neighborTile := currentBoard.getTileNeighbor(singleTile, direction)
+                ;clone the board, moves list, and mistake counter
+                newBoard := currentBoard.makeCopy()
+                newMoveList := MoveQueue(currentMoves.moveList)
+                newMistakes := currentMistakes
 
-                    ;skip the direction if neighboring tile is out of bounds
-                    if (!neighborTile) {
-                        continue
+                ;increase mistake counter if needed and make a move.
+                newMistakes += isMoveAMistake(neighborTile, direction)
+                newBoard.move(direction, newMoveList)
+                inserted := false
+
+                ;insert board state into queue at index dependant on how many mistakes were made
+                for index, boardState in boardStateQueue {
+                    if (boardState.mistakes > newMistakes) {
+                        boardStateQueue.InsertAt(index, { board: newBoard, moves: newMoveList, mistakes: newMistakes })
+                        inserted := true
+                        break
                     }
-
-                    ;clone both the board and moves list
-                    newBoard := currentBoard.makeCopy()
-                    newMoveList := MoveQueue(currentMoves.moveList)
-
-                    ;pathfind if blank tile isnt already in the destination.
-                    if (neighborTile.num != newBoard.blankTile.num) {
-                        pathFind(neighborTile.row, neighborTile.col, &newMoveList, &newBoard, singleTile)
+                    if (boardState.mistakes = newMistakes) {
+                        if (boardState.moves.getMoveCount() <= newMoveList.getMoveCount()) {
+                            boardStateQueue.InsertAt(index, { board: newBoard, moves: newMoveList, mistakes: newMistakes })
+                            inserted := true
+                            break
+                        }
                     }
+                }
 
-                    ;move blanktile into singleTile. then check if the resulting board is on the list of visited board states.
-                    ;if it isnt, then add it to both that list and the queue
-                    newBoard.move(getOppositeDirection(direction), newMoveList)
-                    newBoardString := newBoard.buildBoardString()
-                    if (!visitedBoards.HasOwnProp(newBoardString)) {
-                        visitedBoards.newBoardString := true
-                        boardStateQueue.Push({ board: newBoard, moves: newMoveList })
-                    }
+                if (!inserted) {
+                    boardStateQueue.Push({ board: newBoard, moves: newMoveList, mistakes: newMistakes })
                 }
             }
         }
@@ -562,6 +563,19 @@ Class MoveQueue {
     printMoves() {
         MsgBox(addArrayToStr(this.moveList, ""))
     }
+}
+
+isMoveAMistake(tile, direction) {
+    if (direction = UP_DIRECTION && tile.row >= tile.desiredRow) {
+        return true
+    } else if (direction = DOWN_DIRECTION && tile.row <= tile.desiredRow) {
+        return true
+    } else if (direction = LEFT_DIRECTION && tile.col >= tile.desiredCol) {
+        return true
+    } else if (direction = RIGHT_DIRECTION && tile.col <= tile.desiredCol) {
+        return true
+    }
+    return false
 }
 
 /**Moves the blank tile to a destination while avoiding the movement of a single tile.
@@ -907,12 +921,7 @@ F6:: {
         18, 17, 14, 24, 12,
         19, 22, 15, 23, 25
         ])
-
-    testMoves := MoveQueue()
-    pathFind(3, 3, &testMoves, &testBoard, testBoard.getTile(4, 3))
     strBuffer := ""
-    addArrayToStr(testMoves.moveList, strBuffer)
-    MsgBox(strBuffer)
 
 
     ;solve5x5()
@@ -920,11 +929,8 @@ F6:: {
     testBoard.printBoard()
 
     MsgBox("starting")
-    addArrayToStr(testBoard.solveBoard().moveList, strBuffer)
+    solution := testBoard.solveBoard()
+    addArrayToStr(solution, strBuffer)
     MsgBox(strBuffer)
-    if (testBoard.solveBoard()) {
-        MsgBox("yes")
-    } else {
-        MsgBox("no")
-    }
+    MsgBox("yes")
 }
