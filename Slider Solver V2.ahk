@@ -323,7 +323,7 @@ Class Board {
         boardStateQueue := []
 
         ;add current board state to the queue and list of visited board states
-        boardStateQueue.Push({ board: this, moves: MoveQueue(), mistakes: 0 })
+        boardStateQueue.Push({ board: this, moves: MoveQueue(), mistakes: 0, progress: 0 })
 
         ;loop through each board state on a first-in-first-out basis. this ensures the shortest path is always found
         while (boardStateQueue.Length > 0) {
@@ -334,6 +334,7 @@ Class Board {
             currentBoard := currentState.board
             currentMoves := currentState.moves
             currentMistakes := currentState.mistakes
+            currentProgress := currentState.progress
 
             ;check if the board state that was just grabbed is solved
             if (currentBoard.isBoardSolved()) {
@@ -358,22 +359,30 @@ Class Board {
                 newBoard := currentBoard.makeCopy()
                 newMoveList := MoveQueue(currentMoves.moveList)
                 newMistakes := currentMistakes
+                newProgress := currentProgress
 
-                ;increase mistake counter if needed and make a move.
-                newMistakes += isMoveAMistake(neighborTile, direction)
+                ;analyze the usefulness of the move being made
+                if(isMoveAMistake(neighborTile, direction)){
+                    newMistakes++
+                    newProgress--
+                }else{
+                    newProgress++
+                }
+
+                ;make move
                 newBoard.move(direction, newMoveList)
                 inserted := false
 
                 ;insert board state into queue at index dependant on how many mistakes were made
                 for index, boardState in boardStateQueue {
-                    if (boardState.mistakes > newMistakes) {
-                        boardStateQueue.InsertAt(index, { board: newBoard, moves: newMoveList, mistakes: newMistakes })
+                    if (boardState.progress < newProgress) {
+                        boardStateQueue.InsertAt(index, { board: newBoard, moves: newMoveList, mistakes: newMistakes, progress: newProgress })
                         inserted := true
                         break
                     }
-                    if (boardState.mistakes = newMistakes) {
-                        if (boardState.moves.getMoveCount() <= newMoveList.getMoveCount()) {
-                            boardStateQueue.InsertAt(index, { board: newBoard, moves: newMoveList, mistakes: newMistakes })
+                    if (boardState.progress = newProgress) {
+                        if (boardState.moves.getMoveCount() >= newMoveList.getMoveCount()) {
+                            boardStateQueue.InsertAt(index, { board: newBoard, moves: newMoveList, mistakes: newMistakes, progress: newProgress })
                             inserted := true
                             break
                         }
@@ -381,7 +390,7 @@ Class Board {
                 }
 
                 if (!inserted) {
-                    boardStateQueue.Push({ board: newBoard, moves: newMoveList, mistakes: newMistakes })
+                    boardStateQueue.Push({ board: newBoard, moves: newMoveList, mistakes: newMistakes, progress: newProgress })
                 }
             }
         }
@@ -565,6 +574,7 @@ Class MoveQueue {
     }
 }
 
+;tile is the tile being moved, direction is the oposite direction the tile is being moved in (as if blank tile is moving in the given direction)
 isMoveAMistake(tile, direction) {
     if (direction = UP_DIRECTION && tile.row >= tile.desiredRow) {
         return true
@@ -587,11 +597,11 @@ pathFind(pathToRow, pathToCol, &moveList, &boardState, obstacle) {
     ;set the progress modifier in the best path to a number it should never naturally reach
     boardStateQueue := []
     initialBoardString := boardState.buildBoardString()
-    progressMod := 0
-    currentBestPath := { board: boardState, moves: moveList, progress: boardState.width * boardState.height * -1 }
+    mistakesCount := 0
+    currentBestPath := { board: boardState, moves: moveList, mistakes: boardState.width * boardState.height * -1 }
 
     ;add current board state to the queue
-    boardStateQueue.Push({ board: boardState, moves: moveList, progress: progressMod })
+    boardStateQueue.Push({ board: boardState, moves: moveList, mistakes: mistakesCount })
 
     ;loop through each board state on a first-in-first-out basis. this ensures the shortest path is always found
     while (boardStateQueue.Length > 0) {
@@ -601,7 +611,7 @@ pathFind(pathToRow, pathToCol, &moveList, &boardState, obstacle) {
         boardStateQueue.RemoveAt(1)
         currentBoard := currentState.board
         currentMoves := currentState.moves
-        currentProgressMod := currentState.progress
+        currentMistakesCount := currentState.mistakes
 
         ;set a few bools that will help with checking the board state for various properties
         upFromDest := currentBoard.blankTile.row < pathToRow
@@ -620,8 +630,8 @@ pathFind(pathToRow, pathToCol, &moveList, &boardState, obstacle) {
 
         ;check if the blank tile in the board state that was just grabbed is in the destination slot
         if (inDestRow && inDestCol) {
-            if (currentProgressMod > currentBestPath.progress) {
-                currentBestPath := { board: currentBoard, moves: currentMoves, progress: currentProgressMod }
+            if (currentMistakesCount > currentBestPath.mistakes) {
+                currentBestPath := { board: currentBoard, moves: currentMoves, mistakes: currentMistakesCount }
             }
             continue
         }
@@ -629,7 +639,7 @@ pathFind(pathToRow, pathToCol, &moveList, &boardState, obstacle) {
         ;loop through each direction, only attempting to make a move if it makes progress towards the destination
         for direction in [UP_DIRECTION, DOWN_DIRECTION, LEFT_DIRECTION, RIGHT_DIRECTION] {
             neighbor := currentBoard.getTileNeighbor(currentBoard.blankTile, direction)
-            newProgressMod := currentProgressMod
+            newMistakesCount := currentMistakesCount
 
             ;make sure it isnt moving the obstacle tile and check that the direction is valid
             if (!neighbor || neighbor.num = obstacle.num) {
@@ -654,12 +664,6 @@ pathFind(pathToRow, pathToCol, &moveList, &boardState, obstacle) {
                         (rightFromDest && obstacle.col > pathToCol))) {
                     continue
                 }
-
-                if (neighbor.row < neighbor.desiredRow) {
-                    newProgressMod++
-                } else {
-                    newProgressMod--
-                }
             } else if (direction = DOWN_DIRECTION) {
 
                 ;make sure it isnt below the destination
@@ -677,12 +681,6 @@ pathFind(pathToRow, pathToCol, &moveList, &boardState, obstacle) {
                     ((leftFromDest && obstacle.col < pathToCol) ||
                         (rightFromDest && obstacle.col > pathToCol))) {
                     continue
-                }
-
-                if (neighbor.row > neighbor.desiredRow) {
-                    newProgressMod++
-                } else {
-                    newProgressMod--
                 }
             } else if (direction = LEFT_DIRECTION) {
 
@@ -702,12 +700,6 @@ pathFind(pathToRow, pathToCol, &moveList, &boardState, obstacle) {
                         (downFromDest && obstacle.row > pathToRow))) {
                     continue
                 }
-
-                if (neighbor.col < neighbor.desiredCol) {
-                    newProgressMod++
-                } else {
-                    newProgressMod--
-                }
             } else if (direction = RIGHT_DIRECTION) {
 
                 ;make sure it isnt left of the destination
@@ -726,13 +718,9 @@ pathFind(pathToRow, pathToCol, &moveList, &boardState, obstacle) {
                         (downFromDest && obstacle.row > pathToRow))) {
                     continue
                 }
-
-                if (neighbor.col > neighbor.desiredCol) {
-                    newProgressMod++
-                } else {
-                    newProgressMod--
-                }
             }
+            
+            newMistakesCount += isMoveAMistake(neighbor, direction)
 
             ;clone both the board and moves list
             newBoard := currentBoard.makeCopy()
@@ -740,12 +728,13 @@ pathFind(pathToRow, pathToCol, &moveList, &boardState, obstacle) {
 
             ;attempt to execute the move. if successful, then add it to the queue
             if (newBoard.move(direction, newMoveList)) {
-                boardStateQueue.Push({ board: newBoard, moves: newMoveList, progress: newProgressMod })
+                boardStateQueue.Push({ board: newBoard, moves: newMoveList, mistakes: newMistakesCount })
             }
         }
     }
     boardState := currentBestPath.board
     moveList := currentBestPath.moves
+    return currentBestPath.mistakes
 }
 
 getOppositeDirection(direction) {
