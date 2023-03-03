@@ -242,16 +242,6 @@ Class Board {
         }
     }
 
-    ;Takes a board object and returns true if it is an identical board state to `this`'s board state
-    compareToBoard(otherBoard) {
-        for i, aTile in this.tile {
-            if (!aTile.compareToTile(otherBoard.getTile(, , aTile.num))) {
-                return false
-            }
-        }
-        return true
-    }
-
     ;Returns a deep copy of `this`
     makeCopy() {
         height := this.height
@@ -303,12 +293,20 @@ Class Board {
         return possibleMoves
     }
 
+    getManhattan(){
+        total := 0
+        for aTile in this.tile{
+            total += Abs(aTile.row - aTile.desiredRow) + Abs(aTile.col - aTile.desiredCol)
+        }
+        return total
+    }
+
     solveBoard() {
         ;make a queue, list of visited board states, and a board string
         boardStateQueue := []
 
         ;add current board state to the queue and list of visited board states
-        boardStateQueue.Push({ board: this, moves: MoveQueue(), mistakes: 0, progress: 0 })
+        boardStateQueue.Push({ board: this, moves: MoveQueue(), score: this.getManhattan() })
 
         ;loop through each board state on a first-in-first-out basis. this ensures the shortest path is always found
         while (boardStateQueue.Length > 0) {
@@ -318,8 +316,7 @@ Class Board {
             boardStateQueue.RemoveAt(1)
             currentBoard := currentState.board
             currentMoves := currentState.moves
-            currentMistakes := currentState.mistakes
-            currentProgress := currentState.progress
+            currentScore := currentState.score
 
             ;check if the board state that was just grabbed is solved
             if (currentBoard.isBoardSolved()) {
@@ -349,19 +346,17 @@ Class Board {
                     ;clone the elements of the current boardstate
                     newBoard := currentBoard.makeCopy()
                     newMoveList := MoveQueue(currentMoves.moveList)
-                    newMistakes := currentMistakes
-                    newProgress := currentProgress
+                    newScore := currentScore
 
                     ;if not being skipped, pathfind next to tile
                     if (!skipPathFinding) {
-                        newMistakes += pathFind(neighborTile.row, neighborTile.col, &newMoveList, &newBoard, aTile)
+                        pathFind(neighborTile.row, neighborTile.col, &newMoveList, &newBoard, aTile)
                     }
 
                     ;make move
-                    newMistakes += isMoveAMistake(aTile, getOppositeDirection(direction))
-                    ;newBoard.printBoard()
                     newBoard.move(getOppositeDirection(direction), newMoveList)
                     inserted := false
+                    newScore := newBoard.getManhattan() + newMoveList.getMoveCount()
 
                     if(newMoveList.getMoveCount() >= 200){
                         continue
@@ -369,18 +364,19 @@ Class Board {
 
                     ;insert board state into queue at index dependant on how many mistakes were made
                     for index, boardState in boardStateQueue {
-                        if (boardState.mistakes >= newMistakes && boardState.moves.getMoveCount() <= newMoveList.getMoveCount()) {
-                            boardStateQueue.InsertAt(index, { board: newBoard, moves: newMoveList, mistakes: newMistakes, progress: newProgress })
-                            inserted := true
-                            break
+                        if (boardState.score >= newScore) {
+                            if(boardState.moves.getMoveCount() <= newMoveList.getMoveCount()){
+                                boardStateQueue.InsertAt(index, { board: newBoard, moves: newMoveList, score: newScore })
+                                inserted := true
+                                break
+                            }
                         }
                     }
 
                     if (!inserted) {
-                        boardStateQueue.Push({ board: newBoard, moves: newMoveList, mistakes: newMistakes, progress: newProgress })
+                        boardStateQueue.Push({ board: newBoard, moves: newMoveList, score: newScore })
                     }
                 }
-
             }
         }
         return []
@@ -689,6 +685,16 @@ getOppositeDirection(direction) {
     if (direction = RIGHT_DIRECTION) {
         return LEFT_DIRECTION
     }
+}
+
+;Takes a 2 board objects and returns true if they are identical board states
+compareBoards(board1, board2) {
+    for i, aTile in board1 {
+        if (!aTile.compareToTile(board2.getTile(, , aTile.num))) {
+            return false
+        }
+    }
+    return true
 }
 
 ;Takes a string and appends all the contents of an array to the end of it
