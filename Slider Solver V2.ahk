@@ -262,13 +262,14 @@ Class Board {
      **/
     move(direction, moveList) {
         moveTo := this.getTileNeighbor(this.blankTile, direction)
-        if (!moveTo || !moveList.canAddMove(direction)) {
+        if (!moveTo) {
             return false
         }
 
         moveTo.moveTile(getOppositeDirection(direction))
         this.blankTile.moveTile(direction)
-        return moveList.addMove(direction)
+        moveList.addMove(direction)
+        return true
     }
 
     getPossibleMoves(lastMove) {
@@ -293,12 +294,44 @@ Class Board {
         return possibleMoves
     }
 
-    getManhattan(){
+    getManhattan() {
         total := 0
-        for aTile in this.tile{
+        for aTile in this.tile {
             total += Abs(aTile.row - aTile.desiredRow) + Abs(aTile.col - aTile.desiredCol)
         }
         return total
+    }
+
+    isTileMovable(aTile, direction := 0) {
+        if (direction = 0) {
+            if(aTile.desiredRow = 1 || aTile.desiredCol = 1){
+                return true
+            }
+
+            if(this.isTileMovable(this.getTile(,,aTile.num - this.width), UP_DIRECTION)){
+                return true
+            }
+
+            if(this.isTileMovable(this.getTile(,,aTile.num - 1), LEFT_DIRECTION)){
+                return true
+            }
+        }
+
+        if (!aTile.isTileSolved()) {
+            return false
+        }
+
+        if (aTile.desiredRow = 1 || aTile.desiredCol = 1) {
+            return true
+        }
+
+        if (direction = UP_DIRECTION) {
+            return this.isTileMovable(this.getTileNeighbor(aTile, direction), UP_DIRECTION)
+        }
+
+        if (direction = LEFT_DIRECTION) {
+            return this.isTileMovable(this.getTileNeighbor(aTile, direction), LEFT_DIRECTION)
+        }
     }
 
     solveBoard() {
@@ -324,6 +357,11 @@ Class Board {
             }
 
             for aTile in currentBoard.tile {
+
+                if(!currentBoard.isTileMovable(aTile)){
+                    continue
+                }
+
                 for direction in [RIGHT_DIRECTION, DOWN_DIRECTION, LEFT_DIRECTION, UP_DIRECTION] {
                     neighborTile := currentBoard.getTileNeighbor(aTile, direction)
                     skipPathFinding := false
@@ -336,7 +374,7 @@ Class Board {
                     ;if blank tile is the neighbor in question
                     if (currentBoard.blankTile.compareToTile(neighborTile)) {
                         ;skip the direction if direction is the oposite of the last move's direction
-                        if (direction = getOppositeDirection(currentMoves.getLastMove())) {
+                        if (direction = currentMoves.getLastMove()) {
                             continue
                         }
 
@@ -358,18 +396,18 @@ Class Board {
                     inserted := false
                     newScore := newBoard.getManhattan() + newMoveList.getMoveCount()
 
-                    if(newMoveList.getMoveCount() >= 200){
+                    if (newMoveList.getMoveCount() >= 200) {
                         continue
                     }
 
                     ;insert board state into queue at index dependant on how many mistakes were made
                     for index, boardState in boardStateQueue {
                         if (boardState.score >= newScore) {
-                            if(boardState.moves.getMoveCount() <= newMoveList.getMoveCount()){
+                            ;if (boardState.moves.getMoveCount() <= newMoveList.getMoveCount()) {
                                 boardStateQueue.InsertAt(index, { board: newBoard, moves: newMoveList, score: newScore })
                                 inserted := true
                                 break
-                            }
+                            ;}
                         }
                     }
 
@@ -452,41 +490,11 @@ Class MoveQueue {
     }
 
     addMove(direction) {
-        if (!this.canAddMove(direction)) {
-            return false
-        }
-
         this.moveList.Push(direction)
-        this.undoDirection := 0
-        return true
     }
 
-    canAddMove(direction) {
-        if (direction = RIGHT_DIRECTION) {
-            if (this.getLastMove() = LEFT_DIRECTION) {
-                return false
-            }
-        }
-
-        if (direction = DOWN_DIRECTION) {
-            if (this.getLastMove() = UP_DIRECTION) {
-                return false
-            }
-        }
-
-        if (direction = LEFT_DIRECTION) {
-            if (this.getLastMove() = RIGHT_DIRECTION) {
-                return false
-            }
-        }
-
-        if (direction = UP_DIRECTION) {
-            if (this.getLastMove() = DOWN_DIRECTION) {
-                return false
-            }
-        }
-
-        return true
+    isMoveAnUndo(direction) {
+        return direction = getOppositeDirection(this.getLastMove())
     }
 
     getLastMove() {
@@ -560,6 +568,11 @@ pathFind(pathToRow, pathToCol, &moveList, &boardObj, obstacle) {
         inObstacleRow := currentBoard.blankTile.row = obstacle.row
         inObstacleCol := currentBoard.blankTile.col = obstacle.col
 
+        destUpFromObstacle := pathToRow < obstacle.row
+        destDownFromObstacle := pathToRow > obstacle.row
+        destLeftFromObstacle := pathToCol < obstacle.col
+        destRightFromObstacle := pathToCol > obstacle.col
+
         ;check if the blank tile in the board state that was just grabbed is in the destination slot
         if (inDestRow && inDestCol) {
             if (currentMistakesCount < currentBestPath.mistakes) {
@@ -585,9 +598,15 @@ pathFind(pathToRow, pathToCol, &moveList, &boardObj, obstacle) {
                     continue
                 }
 
-                ;make sure it isnt in the correct row and the correct side of the obstacle
-                if (inDestRow && ((rightFromDest && rightFromObstacle) || (leftFromDest && leftFromObstacle))) {
-                    continue
+                ;if in destination row, only allow it to move down when stuck behind obstacle
+                if (inDestRow) {
+                    if(!inObstacleRow){
+                        continue
+                    }
+
+                    if((rightFromDest && rightFromObstacle && destRightFromObstacle) || (leftFromDest && leftFromObstacle && destLeftFromObstacle)){
+                        continue
+                    }
                 }
 
                 ;make sure it doesnt try to move behind the obstacle tile
@@ -603,9 +622,15 @@ pathFind(pathToRow, pathToCol, &moveList, &boardObj, obstacle) {
                     continue
                 }
 
-                ;make sure it isnt in the correct row and the correct side of the obstacle
-                if (inDestRow && ((rightFromDest && rightFromObstacle) || (leftFromDest && leftFromObstacle))) {
-                    continue
+                ;if in destination row, only allow it to move down when stuck behind obstacle
+                if (inDestRow) {
+                    if(!inObstacleRow){
+                        continue
+                    }
+
+                    if((rightFromDest && rightFromObstacle && destRightFromObstacle) || (leftFromDest && leftFromObstacle && destLeftFromObstacle)){
+                        continue
+                    }
                 }
 
                 ;make sure it doesnt try to move behind the obstacle tile
@@ -621,9 +646,15 @@ pathFind(pathToRow, pathToCol, &moveList, &boardObj, obstacle) {
                     continue
                 }
 
-                ;make sure it isnt in the correct col and the correct vertical side of the obstacle
-                if (inDestCol && ((upFromDest && upFromObstacle) || (downFromDest && downFromObstacle))) {
-                    continue
+                ;if in destination col, only allow it to move right when stuck behind obstacle
+                if (inDestCol){
+                    if(!inObstacleCol){
+                        continue
+                    }
+
+                    if((upFromDest && upFromObstacle && destUpFromObstacle) || (downFromDest && downFromObstacle && destDownFromObstacle)){
+                        continue
+                    }
                 }
 
                 ;make sure it doesnt try to move behind the obstacle tile
@@ -634,14 +665,20 @@ pathFind(pathToRow, pathToCol, &moveList, &boardObj, obstacle) {
                 }
             } else if (direction = RIGHT_DIRECTION) {
 
-                ;make sure it isnt left of the destination
+                ;make sure it isnt right of the destination
                 if (rightFromDest) {
                     continue
                 }
 
-                ;make sure it isnt in the correct col and the correct vertical side of the obstacle
-                if (inDestCol && ((upFromDest && upFromObstacle) || (downFromDest && downFromObstacle))) {
-                    continue
+                ;if in destination col, only allow it to move right when stuck behind obstacle
+                if (inDestCol){
+                    if(!inObstacleCol){
+                        continue
+                    }
+
+                    if((upFromDest && upFromObstacle && destUpFromObstacle) || (downFromDest && downFromObstacle && destDownFromObstacle)){
+                        continue
+                    }
                 }
 
                 ;make sure it doesnt try to move behind the obstacle tile
