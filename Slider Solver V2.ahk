@@ -326,57 +326,61 @@ Class Board {
                 return currentMoves
             }
 
-            ;iterate through all the possible moves that can be made from the board state that was just grabbed
-            for direction in [RIGHT_DIRECTION, DOWN_DIRECTION, LEFT_DIRECTION, UP_DIRECTION] {
-                neighborTile := currentBoard.getTileNeighbor(currentBoard.blankTile, direction)
+            for aTile in currentBoard.tile {
+                for direction in [RIGHT_DIRECTION, DOWN_DIRECTION, LEFT_DIRECTION, UP_DIRECTION] {
+                    neighborTile := currentBoard.getTileNeighbor(aTile, direction)
+                    skipPathFinding := false
 
-                ;skip the direction if neighboring tile is out of bounds
-                if (!neighborTile) {
-                    continue
-                }
-
-                ;skip the direction if direction is the oposite of the last move's direction
-                if (direction = getOppositeDirection(currentMoves.getLastMove())) {
-                    continue
-                }
-
-                ;clone the board, moves list, and mistake counter
-                newBoard := currentBoard.makeCopy()
-                newMoveList := MoveQueue(currentMoves.moveList)
-                newMistakes := currentMistakes
-                newProgress := currentProgress
-
-                ;analyze the usefulness of the move being made
-                if(isMoveAMistake(neighborTile, direction)){
-                    newMistakes++
-                    newProgress--
-                }else{
-                    newProgress++
-                }
-
-                ;make move
-                newBoard.move(direction, newMoveList)
-                inserted := false
-
-                ;insert board state into queue at index dependant on how many mistakes were made
-                for index, boardState in boardStateQueue {
-                    if (boardState.progress < newProgress) {
-                        boardStateQueue.InsertAt(index, { board: newBoard, moves: newMoveList, mistakes: newMistakes, progress: newProgress })
-                        inserted := true
-                        break
+                    ;skip the direction if neighboring tile is out of bounds
+                    if (!neighborTile) {
+                        continue
                     }
-                    if (boardState.progress = newProgress) {
-                        if (boardState.moves.getMoveCount() >= newMoveList.getMoveCount()) {
+
+                    ;if blank tile is the neighbor in question
+                    if (currentBoard.blankTile.compareToTile(neighborTile)) {
+                        ;skip the direction if direction is the oposite of the last move's direction
+                        if (direction = getOppositeDirection(currentMoves.getLastMove())) {
+                            continue
+                        }
+
+                        skipPathFinding := true
+                    }
+
+                    ;clone the elements of the current boardstate
+                    newBoard := currentBoard.makeCopy()
+                    newMoveList := MoveQueue(currentMoves.moveList)
+                    newMistakes := currentMistakes
+                    newProgress := currentProgress
+
+                    ;if not being skipped, pathfind next to tile
+                    if (!skipPathFinding) {
+                        newMistakes += pathFind(neighborTile.row, neighborTile.col, &newMoveList, &newBoard, aTile)
+                    }
+
+                    ;make move
+                    newMistakes += isMoveAMistake(aTile, getOppositeDirection(direction))
+                    ;newBoard.printBoard()
+                    newBoard.move(getOppositeDirection(direction), newMoveList)
+                    inserted := false
+
+                    if(newMoveList.getMoveCount() >= 200){
+                        continue
+                    }
+
+                    ;insert board state into queue at index dependant on how many mistakes were made
+                    for index, boardState in boardStateQueue {
+                        if (boardState.mistakes >= newMistakes && boardState.moves.getMoveCount() <= newMoveList.getMoveCount()) {
                             boardStateQueue.InsertAt(index, { board: newBoard, moves: newMoveList, mistakes: newMistakes, progress: newProgress })
                             inserted := true
                             break
                         }
                     }
+
+                    if (!inserted) {
+                        boardStateQueue.Push({ board: newBoard, moves: newMoveList, mistakes: newMistakes, progress: newProgress })
+                    }
                 }
 
-                if (!inserted) {
-                    boardStateQueue.Push({ board: newBoard, moves: newMoveList, mistakes: newMistakes, progress: newProgress })
-                }
             }
         }
         return []
@@ -524,16 +528,16 @@ isMoveAMistake(tile, direction) {
  * 
  * Tries to always move tiles closer to their destination rather than further away.
  **/
-pathFind(pathToRow, pathToCol, &moveList, &boardState, obstacle) {
+pathFind(pathToRow, pathToCol, &moveList, &boardObj, obstacle) {
     ;make a queue, a board string, a progress modifier, and a current best path
     ;set the progress modifier in the best path to a number it should never naturally reach
     boardStateQueue := []
-    initialBoardString := boardState.buildBoardString()
+    initialBoardString := boardObj.buildBoardString()
     mistakesCount := 0
-    currentBestPath := { board: boardState, moves: moveList, mistakes: boardState.width * boardState.height * -1 }
+    currentBestPath := { board: boardObj, moves: moveList, mistakes: boardObj.width * boardObj.height }
 
     ;add current board state to the queue
-    boardStateQueue.Push({ board: boardState, moves: moveList, mistakes: mistakesCount })
+    boardStateQueue.Push({ board: boardObj, moves: moveList, mistakes: mistakesCount })
 
     ;loop through each board state on a first-in-first-out basis. this ensures the shortest path is always found
     while (boardStateQueue.Length > 0) {
@@ -562,7 +566,7 @@ pathFind(pathToRow, pathToCol, &moveList, &boardState, obstacle) {
 
         ;check if the blank tile in the board state that was just grabbed is in the destination slot
         if (inDestRow && inDestCol) {
-            if (currentMistakesCount > currentBestPath.mistakes) {
+            if (currentMistakesCount < currentBestPath.mistakes) {
                 currentBestPath := { board: currentBoard, moves: currentMoves, mistakes: currentMistakesCount }
             }
             continue
@@ -651,7 +655,7 @@ pathFind(pathToRow, pathToCol, &moveList, &boardState, obstacle) {
                     continue
                 }
             }
-            
+
             newMistakesCount += isMoveAMistake(neighbor, direction)
 
             ;clone both the board and moves list
@@ -664,7 +668,7 @@ pathFind(pathToRow, pathToCol, &moveList, &boardState, obstacle) {
             }
         }
     }
-    boardState := currentBestPath.board
+    boardObj := currentBestPath.board
     moveList := currentBestPath.moves
     return currentBestPath.mistakes
 }
