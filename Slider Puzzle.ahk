@@ -1363,11 +1363,14 @@ addUniquesToStr(uX, uY, ByRef str){
 #IfWinActive RuneScape
 
 F6::
+NumpadDiv::
 solve5x5()
 return
 
 F7::
 F8::
+NumpadMult::
+NumpadSub::
 executeMove()
 return
 

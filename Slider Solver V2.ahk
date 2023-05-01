@@ -294,7 +294,7 @@ Class Board {
         return possibleMoves
     }
 
-    getManhattan() {
+    getBoardManhattan() {
         total := 0
         for aTile in this.tile {
             total += Abs(aTile.row - aTile.desiredRow) + Abs(aTile.col - aTile.desiredCol)
@@ -334,12 +334,48 @@ Class Board {
         }
     }
 
+    getHighestUnsolvedRow(){
+        row := 1
+        col := 1
+        while (true){
+            if(!this.getTile(row, col).isTileSolved()){
+                row--
+                break
+            }
+            col++
+
+            if(col = this.width + 1){
+                col := 1
+                row++
+            }
+        }
+        return row
+    }
+
+    getLeftmostUnsolvedCol(){
+        row := 1
+        col := 1
+        while (true){
+            if(!this.getTile(row, col).isTileSolved()){
+                col--
+                break
+            }
+            row++
+
+            if(row = this.height + 1){
+                row := 1
+                col++
+            }
+        }
+        return col
+    }
+
     solveBoard() {
         ;make a queue, list of visited board states, and a board string
         boardStateQueue := []
 
         ;add current board state to the queue and list of visited board states
-        boardStateQueue.Push({ board: this, moves: MoveQueue(), score: this.getManhattan() })
+        boardStateQueue.Push({ board: this, moves: MoveQueue(), score: this.getBoardManhattan() })
 
         ;loop through each board state on a first-in-first-out basis. this ensures the shortest path is always found
         while (boardStateQueue.Length > 0) {
@@ -362,7 +398,29 @@ Class Board {
                     continue
                 }
 
+                if(aTile.isTileSolved()){
+                    if(aTile.row = currentBoard.getHighestUnsolvedRow()){
+                        belowATile := currentBoard.getTileNeighbor(aTile, DOWN_DIRECTION)
+                        if(aTile.compareToTile(currentBoard.getTile(,,aTile.num + currentBoard.width)))
+                        snakeDiagLeft := currentBoard.getTileNeighbor(currentBoard.getTileNeighbor(aTile, LEFT_DIRECTION), DOWN_DIRECTION)
+                        if(snakeDiagLeft){
+                            snakeTargetLeft := currentBoard.getTileNeighbor(snakeDiagLeft, LEFT_DIRECTION)
+                            snakeTargetDown := currentBoard.getTileNeighbor(snakeDiagLeft, DOWN_DIRECTION)
+                        }
+                    }
+
+                    if(aTile.col = currentBoard.getLeftmostUnsolvedCol()){
+
+                    }
+                }
+
                 for direction in [RIGHT_DIRECTION, DOWN_DIRECTION, LEFT_DIRECTION, UP_DIRECTION] {
+
+                    ;skip direction if it moves the tile away from its destination
+                    if(isMoveAMistake(aTile, getOppositeDirection(direction))){
+                        continue
+                    }
+                    
                     neighborTile := currentBoard.getTileNeighbor(aTile, direction)
                     skipPathFinding := false
 
@@ -390,11 +448,11 @@ Class Board {
                     if (!skipPathFinding) {
                         pathFind(neighborTile.row, neighborTile.col, &newMoveList, &newBoard, aTile)
                     }
-
+                    
                     ;make move
                     newBoard.move(getOppositeDirection(direction), newMoveList)
                     inserted := false
-                    newScore := newBoard.getManhattan() + newMoveList.getMoveCount()
+                    newScore := newBoard.getBoardManhattan() + newMoveList.getMoveCount()
 
                     if (newMoveList.getMoveCount() >= 200) {
                         continue
