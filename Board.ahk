@@ -163,6 +163,17 @@ Class Board {
         return strBuffer
     }
 
+    toArray(){
+        boardArray := []
+        boardArray.Length := this.width * this.height
+
+        for aTile in this.tile {
+            boardArray[aTile.col + ((aTile.row - 1) * this.width)] := aTile.num
+        }
+
+        return boardArray
+    }
+
     ;Returns a prepared string that can be used to print the board on the screen or copy it to the clipboard
     buildBoardString() {
         strBuffer := ""
@@ -204,16 +215,8 @@ Class Board {
 
     ;Returns a deep copy of `this`
     makeCopy() {
-        height := this.height
-        width := this.width
-        boardArray := []
-        boardArray.Length := width * height
-
-        for head in this.tile {
-            boardArray[head.col + ((head.row - 1) * width)] := head.num
-        }
-
-        return Board(height, width, boardArray)
+        boardArray := this.toArray()
+        return Board(this.height, this.width, boardArray)
     }
 
     /**Takes a direction and a MoveQueue object and moves the blank tile in the given direction,
