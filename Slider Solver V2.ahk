@@ -296,6 +296,19 @@ addArrayToStr(myArray, str) {
 }
 
 F6:: {
+    x := 3
+    testObj := {}
+    testObj.test := x
+    child := "toStringResult"
+    testObj.%child% := 8
+
+    MsgBox(testObj.HasOwnProp("test"))          ;true
+    MsgBox(testObj.test)                        ;3
+
+    MsgBox(testObj.HasOwnProp(child))           ;false
+    MsgBox(testObj.HasOwnProp("toStringResult"))
+    MsgBox(testObj.toStringResult)
+    MsgBox(testObj.%child%)                     ;8
     testBoard := Board(5, 5,
         [
         10, 21, 03, 11, 05,

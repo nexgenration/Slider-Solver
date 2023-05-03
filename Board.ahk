@@ -141,6 +141,28 @@ Class Board {
         }
     }
 
+    toString(){
+        strBuffer := ""
+        row := 1
+        while (row <= this.height) {
+
+            col := 1
+            while (col <= this.width) {
+
+                tempTile := this.getTile(row, col)
+                if (tempTile.num < 10) {
+                    strBuffer .= 0
+                }
+
+                strBuffer .= tempTile.num
+                col++
+            }
+            row++
+        }
+
+        return strBuffer
+    }
+
     ;Returns a prepared string that can be used to print the board on the screen or copy it to the clipboard
     buildBoardString() {
         strBuffer := ""
