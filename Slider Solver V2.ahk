@@ -12,7 +12,8 @@ global DOWN_DIRECTION := "DOWN"
 global LEFT_DIRECTION := "LEFT"
 global RIGHT_DIRECTION := "RIGHT"
 
-global mainBoard := Board(5, 5)
+global SOLVEDBOARD := Board(5, 5)
+global SOLVEDBOARDSTRING := SOLVEDBOARD.toString()
 global INVALID_BOARD := Board(1, 1, [0], true)
 
 global searchX1 := 800
@@ -65,6 +66,51 @@ solve5x5() {
     ; ToolTip, %strBuffer
     ; Sleep 3000
     ; ToolTip, %""
+}
+
+solvePuzzle(board)
+{
+    depth_limit := board.getBoardManhattan()
+    while (depth_limit <= 100) {
+        closed := {}
+        path := [{board: board, moves: MoveQueue([])}]
+        if (search(depth_limit, 0, path, closed)) {
+            return path
+        }
+        depth_limit++
+    }
+    return []
+}
+
+search(depthLimit, depth, path, closed){
+    board := path[path.Length].board
+    moves := path[path.Length].moves
+
+    if(board.isBoardSolved()){
+        return true
+    }
+    
+    if(depth + board.getBoardManhattan() > depthLimit){
+        return false
+    }
+    
+    for i, direction in board.getPossibleMoves(moves.getLastMove()){
+        newBoard := board.makeCopy()
+        newMoveList := MoveQueue(moves.moveList)
+        newBoard.move(direction, newMoveList)
+        boardString := newBoard.toString()
+
+        if(!closed.HasOwnProp(boardString)){
+            path.Push({board: newBoard, moves: newMoveList})
+            closed.%boardString% := true
+
+            if(search(depthLimit, depth + 1, path, closed)){
+                return true
+            }
+            path.Pop()
+        }
+    }
+    return false
 }
 
 ;tile is the tile being moved, direction is the oposite direction the tile is being moved in (as if blank tile is moving in the given direction)
@@ -296,19 +342,6 @@ addArrayToStr(myArray, str) {
 }
 
 F6:: {
-    x := 3
-    testObj := {}
-    testObj.test := x
-    child := "toStringResult"
-    testObj.%child% := 8
-
-    MsgBox(testObj.HasOwnProp("test"))          ;true
-    MsgBox(testObj.test)                        ;3
-
-    MsgBox(testObj.HasOwnProp(child))           ;false
-    MsgBox(testObj.HasOwnProp("toStringResult"))
-    MsgBox(testObj.toStringResult)
-    MsgBox(testObj.%child%)                     ;8
     testBoard := Board(5, 5,
         [
         10, 21, 03, 11, 05,
@@ -325,8 +358,10 @@ F6:: {
     testBoard.printBoard()
 
     MsgBox("starting")
-    solution := testBoard.solveBoard()
-    addArrayToStr(solution, strBuffer)
+    ;solution := testBoard.solveBoard()
+    ;addArrayToStr(solution, strBuffer)
+    solution := solvePuzzle(testBoard)
+    addArrayToStr(solution.moves, strBuffer)
     MsgBox(strBuffer)
     MsgBox("yes")
 }
