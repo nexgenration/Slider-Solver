@@ -6,6 +6,7 @@
 #Include MoveQueue.ahk
 #Include Board.ahk
 #Include Screen Scanner.ahk
+#Include Board Array.ahk
 
 global UP_DIRECTION := "UP"
 global DOWN_DIRECTION := "DOWN"
@@ -68,13 +69,13 @@ solve5x5() {
     ; ToolTip, %""
 }
 
-solvePuzzle(board)
+solvePuzzle(boardArray, width)
 {
-    depth_limit := board.getBoardManhattan()
+    depth_limit := getBoardManhattan(boardArray, width)
     while (depth_limit <= 100) {
         closed := {}
-        path := [{board: board, moves: MoveQueue([])}]
-        if (search(depth_limit, 0, path, closed)) {
+        path := [{board: boardArray, moves: MoveQueue([])}]
+        if (search(depth_limit, 0, path, closed, width)) {
             return path
         }
         depth_limit++
@@ -82,29 +83,31 @@ solvePuzzle(board)
     return []
 }
 
-search(depthLimit, depth, path, closed){
-    board := path[path.Length].board
+search(depthLimit, depth, path, closed, width){
+    boardArray := path[path.Length].board
     moves := path[path.Length].moves
+    height := boardArray.Length / width
 
-    if(board.isBoardSolved()){
+    if(isBoardArraySolved(boardArray)){
         return true
     }
     
-    if(depth + board.getBoardManhattan() > depthLimit){
+    if(depth + getBoardManhattan(boardArray, width) > depthLimit){
         return false
     }
     
-    for i, direction in board.getPossibleMoves(moves.getLastMove()){
-        newBoard := board.makeCopy()
+    for i, direction in getPossibleMoves(boardArray, width, height, moves.getLastMove()){
+        newBoard := boardArray.Clone()
         newMoveList := MoveQueue(moves.moveList)
-        newBoard.move(direction, newMoveList)
-        boardString := newBoard.toString()
+        applyMove(newBoard, width, direction)
+        newMoveList.moveList.Push(direction)
+        boardString := createBoardString(newBoard)
 
         if(!closed.HasOwnProp(boardString)){
             path.Push({board: newBoard, moves: newMoveList})
             closed.%boardString% := true
 
-            if(search(depthLimit, depth + 1, path, closed)){
+            if(search(depthLimit, depth + 1, path, closed, width)){
                 return true
             }
             path.Pop()
@@ -352,6 +355,15 @@ F6:: {
         ])
     strBuffer := ""
 
+    testBoardArray := [
+        10, 21, 03, 11, 05,
+        02, 06, 01, 07, 04,
+        08, 20, 09, 16, 13,
+        18, 17, 14, 24, 12,
+        19, 22, 15, 23, 25
+        ]
+    solvedBoardArray := createSolvedBoardArray(5, 5)
+
 
     ;solve5x5()
     testBoard2 := testBoard.Clone()
@@ -360,7 +372,7 @@ F6:: {
     MsgBox("starting")
     ;solution := testBoard.solveBoard()
     ;addArrayToStr(solution, strBuffer)
-    solution := solvePuzzle(testBoard)
+    solution := solvePuzzle(testBoardArray, 5)
     addArrayToStr(solution.moves, strBuffer)
     MsgBox(strBuffer)
     MsgBox("yes")
