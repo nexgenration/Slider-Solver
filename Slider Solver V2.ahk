@@ -74,8 +74,8 @@ solvePuzzle(boardArray, width)
     depth_limit := getBoardManhattan(boardArray, width)
     while (depth_limit <= 100) {
         closed := {}
-        path := [{board: boardArray, moves: MoveQueue([])}]
-        if (search(depth_limit, 0, path, closed, width)) {
+        path := [boardArray]
+        if (search(depth_limit, 0, path, closed, width, 0)) {
             return path
         }
         depth_limit++
@@ -83,9 +83,8 @@ solvePuzzle(boardArray, width)
     return []
 }
 
-search(depthLimit, depth, path, closed, width){
-    boardArray := path[path.Length].board
-    moves := path[path.Length].moves
+search(depthLimit, depth, path, closed, width, lastMove){
+    boardArray := path[path.Length]
     height := boardArray.Length / width
 
     if(isBoardArraySolved(boardArray)){
@@ -96,18 +95,16 @@ search(depthLimit, depth, path, closed, width){
         return false
     }
     
-    for i, direction in getPossibleMoves(boardArray, width, height, moves.getLastMove()){
+    for i, direction in getPossibleMoves(boardArray, width, height, lastMove){
         newBoard := boardArray.Clone()
-        newMoveList := MoveQueue(moves.moveList)
         applyMove(newBoard, width, direction)
-        newMoveList.moveList.Push(direction)
         boardString := createBoardString(newBoard)
 
         if(!closed.HasOwnProp(boardString)){
-            path.Push({board: newBoard, moves: newMoveList})
+            path.Push(newBoard)
             closed.%boardString% := true
 
-            if(search(depthLimit, depth + 1, path, closed, width)){
+            if(search(depthLimit, depth + 1, path, closed, width, direction)){
                 return true
             }
             path.Pop()
