@@ -72,39 +72,55 @@ solve5x5() {
 solvePuzzle(boardArray, width)
 {
     depth_limit := getBoardManhattan(boardArray, width)
-    while (depth_limit <= 100) {
+    heuristicValue := depth_limit + 5
+    while (true) {
         closed := {}
         path := [boardArray]
-        if (search(depth_limit, 0, path, closed, width, 0)) {
+        if (search(depth_limit, 0, path, closed, width, 0, &heuristicValue)) {
             return path
         }
-        depth_limit++
+
+        if(heuristicValue > depth_limit){
+            depth_limit := heuristicValue
+        }else{
+            depth_limit++
+        }
+        heuristicValue := heuristicValue + 5
     }
     return []
 }
 
-search(depthLimit, depth, path, closed, width, lastMove){
+search(depthLimit, depth, path, closed, width, lastMove, &lowestHeuristicValue){
     boardArray := path[path.Length]
     height := boardArray.Length / width
+    manhattanValue := getBoardManhattan(boardArray, width)
+    heuristicValue := depth + manhattanValue
 
-    if(isBoardArraySolved(boardArray)){
-        return true
+    if(manhattanValue = 0){
+        return path
+    }
+
+    if(heuristicValue > depthLimit && heuristicValue < lowestHeuristicValue){
+        lowestHeuristicValue := heuristicValue
     }
     
-    if(depth + getBoardManhattan(boardArray, width) > depthLimit){
+    if(heuristicValue > depthLimit){
         return false
     }
     
     for i, direction in getPossibleMoves(boardArray, width, height, lastMove){
         newBoard := boardArray.Clone()
-        applyMove(newBoard, width, direction)
+        if(!applyMove(newBoard, width, direction)){
+            continue
+        }
+        
         boardString := createBoardString(newBoard)
 
         if(!closed.HasOwnProp(boardString)){
             path.Push(newBoard)
             closed.%boardString% := true
 
-            if(search(depthLimit, depth + 1, path, closed, width, direction)){
+            if(search(depthLimit, depth + 1, path, closed, width, direction, &lowestHeuristicValue)){
                 return true
             }
             path.Pop()
