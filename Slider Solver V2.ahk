@@ -7,6 +7,7 @@
 #Include Board.ahk
 #Include Screen Scanner.ahk
 #Include Board Array.ahk
+#Include SearchFunctions.ahk
 
 global UP_DIRECTION := "UP"
 global DOWN_DIRECTION := "DOWN"
@@ -71,62 +72,26 @@ solve5x5() {
 
 solvePuzzle(boardArray, width)
 {
-    depth_limit := getBoardManhattan(boardArray, width)
-    heuristicValue := depth_limit + 5
+    depth_limit := getOuterManhattan(boardArray, width)[1]
     while (true) {
         closed := {}
         path := [boardArray]
-        if (search(depth_limit, 0, path, closed, width, 0, &heuristicValue)) {
+        if (searchOuter(depth_limit, 0, path, closed, width, 0)) {
             return path
         }
+        depth_limit++
+    }
 
-        if(heuristicValue > depth_limit){
-            depth_limit := heuristicValue
-        }else{
-            depth_limit++
+    depth_limit := getBoardManhattan(boardArray, width)
+    while (true) {
+        closed := {}
+        path := [boardArray]
+        if (search(depth_limit, 0, path, closed, width, 0)) {
+            return path
         }
-        heuristicValue := heuristicValue + 5
+        depth_limit++
     }
     return []
-}
-
-search(depthLimit, depth, path, closed, width, lastMove, &lowestHeuristicValue){
-    boardArray := path[path.Length]
-    height := boardArray.Length / width
-    manhattanValue := getBoardManhattan(boardArray, width)
-    heuristicValue := depth + manhattanValue
-
-    if(manhattanValue = 0){
-        return path
-    }
-
-    if(heuristicValue > depthLimit && heuristicValue < lowestHeuristicValue){
-        lowestHeuristicValue := heuristicValue
-    }
-    
-    if(heuristicValue > depthLimit){
-        return false
-    }
-    
-    for i, direction in getPossibleMoves(boardArray, width, height, lastMove){
-        newBoard := boardArray.Clone()
-        if(!applyMove(newBoard, width, direction)){
-            continue
-        }
-        
-        boardString := createBoardString(newBoard)
-
-        if(!closed.HasOwnProp(boardString)){
-            path.Push(newBoard)
-            closed.%boardString% := true
-
-            if(search(depthLimit, depth + 1, path, closed, width, direction, &lowestHeuristicValue)){
-                return true
-            }
-            path.Pop()
-        }
-    }
-    return false
 }
 
 ;tile is the tile being moved, direction is the oposite direction the tile is being moved in (as if blank tile is moving in the given direction)
@@ -215,11 +180,11 @@ pathFind(pathToRow, pathToCol, &moveList, &boardObj, obstacle) {
 
                 ;if in destination row, only allow it to move down when stuck behind obstacle
                 if (inDestRow) {
-                    if(!inObstacleRow){
+                    if (!inObstacleRow) {
                         continue
                     }
 
-                    if((rightFromDest && rightFromObstacle && destRightFromObstacle) || (leftFromDest && leftFromObstacle && destLeftFromObstacle)){
+                    if ((rightFromDest && rightFromObstacle && destRightFromObstacle) || (leftFromDest && leftFromObstacle && destLeftFromObstacle)) {
                         continue
                     }
                 }
@@ -239,11 +204,11 @@ pathFind(pathToRow, pathToCol, &moveList, &boardObj, obstacle) {
 
                 ;if in destination row, only allow it to move down when stuck behind obstacle
                 if (inDestRow) {
-                    if(!inObstacleRow){
+                    if (!inObstacleRow) {
                         continue
                     }
 
-                    if((rightFromDest && rightFromObstacle && destRightFromObstacle) || (leftFromDest && leftFromObstacle && destLeftFromObstacle)){
+                    if ((rightFromDest && rightFromObstacle && destRightFromObstacle) || (leftFromDest && leftFromObstacle && destLeftFromObstacle)) {
                         continue
                     }
                 }
@@ -262,12 +227,12 @@ pathFind(pathToRow, pathToCol, &moveList, &boardObj, obstacle) {
                 }
 
                 ;if in destination col, only allow it to move right when stuck behind obstacle
-                if (inDestCol){
-                    if(!inObstacleCol){
+                if (inDestCol) {
+                    if (!inObstacleCol) {
                         continue
                     }
 
-                    if((upFromDest && upFromObstacle && destUpFromObstacle) || (downFromDest && downFromObstacle && destDownFromObstacle)){
+                    if ((upFromDest && upFromObstacle && destUpFromObstacle) || (downFromDest && downFromObstacle && destDownFromObstacle)) {
                         continue
                     }
                 }
@@ -286,12 +251,12 @@ pathFind(pathToRow, pathToCol, &moveList, &boardObj, obstacle) {
                 }
 
                 ;if in destination col, only allow it to move right when stuck behind obstacle
-                if (inDestCol){
-                    if(!inObstacleCol){
+                if (inDestCol) {
+                    if (!inObstacleCol) {
                         continue
                     }
 
-                    if((upFromDest && upFromObstacle && destUpFromObstacle) || (downFromDest && downFromObstacle && destDownFromObstacle)){
+                    if ((upFromDest && upFromObstacle && destUpFromObstacle) || (downFromDest && downFromObstacle && destDownFromObstacle)) {
                         continue
                     }
                 }
@@ -358,7 +323,7 @@ addArrayToStr(myArray, str) {
 }
 
 F6:: {
-    testBoard := Board(5, 5,
+     testBoard := Board(5, 5,
         [
         10, 21, 03, 11, 05,
         02, 06, 01, 07, 04,
@@ -374,7 +339,7 @@ F6:: {
         08, 20, 09, 16, 13,
         18, 17, 14, 24, 12,
         19, 22, 15, 23, 25
-        ]
+    ]
     solvedBoardArray := createSolvedBoardArray(5, 5)
 
 
