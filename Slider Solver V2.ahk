@@ -72,24 +72,48 @@ solve5x5() {
 
 solvePuzzle(boardArray, width)
 {
-    depth_limit := getOuterManhattan(boardArray, width)[1]
+    depthLimit := getBoardManhattan(boardArray, width)
     while (true) {
         closed := {}
         path := [boardArray]
-        if (searchOuter(depth_limit, 0, path, closed, width, 0)) {
-            return path
+        if (solveFirstTile(depthLimit, 0, path, closed, width, 0)) {
+            break
         }
-        depth_limit++
+        depthLimit++
     }
-
-    depth_limit := getBoardManhattan(boardArray, width)
+    /*
+        depth_limit := getOuterManhattan(boardArray, width)[1]
+        while (true) {
+            closed := {}
+            path := [boardArray]
+            if (searchOuter(depth_limit, 0, path, closed, width, 0)) {
+                return path
+            }
+            depth_limit++
+        }
+    */
+    boardArray := path[-1]
+    depthLimit := getBoardManhattan(boardArray, width)
+    depthLimitIncreases := 0
+    pathCheckpoint := clonePath(path)
     while (true) {
+        bestPath := []
         closed := {}
-        path := [boardArray]
-        if (search(depth_limit, 0, path, closed, width, 0)) {
+        path := clonePath(pathCheckpoint)
+        boardArray := path[-1]
+        solutionFound := search(depthLimit, 0, path, closed, width, 0, &bestPath)
+        if (solutionFound) {
             return path
         }
-        depth_limit++
+
+        if(depthLimitIncreases = 10){
+            pathCheckpoint := clonePath(bestPath)
+            depthLimit := getBoardManhattan(path[-1], width)
+            depthLimitIncreases := 0
+            continue
+        }
+        depthLimitIncreases++
+        depthLimit++
     }
     return []
 }
@@ -323,7 +347,7 @@ addArrayToStr(myArray, str) {
 }
 
 F6:: {
-     testBoard := Board(5, 5,
+    testBoard := Board(5, 5,
         [
         10, 21, 03, 11, 05,
         02, 06, 01, 07, 04,
@@ -342,12 +366,7 @@ F6:: {
     ]
     solvedBoardArray := createSolvedBoardArray(5, 5)
 
-
-    ;solve5x5()
-    testBoard2 := testBoard.Clone()
-    testBoard.printBoard()
-
-    MsgBox("starting")
+    ;MsgBox("starting")
     ;solution := testBoard.solveBoard()
     ;addArrayToStr(solution, strBuffer)
     solution := solvePuzzle(testBoardArray, 5)

@@ -24,7 +24,7 @@ createBoardString(boardArray) {
     }
 }
 
-printBoard(boardArray, width) {
+printBoard(boardArray, width, extraMsg := "") {
     strBuffer := ""
     height := boardArray.Length / width
     index := 1
@@ -39,7 +39,12 @@ printBoard(boardArray, width) {
                 strBuffer .= 0
             }
 
-            strBuffer .= tempTile
+            if(tempTile = boardArray.Length){
+                strBuffer .= "00"
+            }else{
+                strBuffer .= tempTile
+            }
+
             if (col != width) {
                 strBuffer .= ", "
             } else {
@@ -51,6 +56,7 @@ printBoard(boardArray, width) {
         }
         row++
     }
+    strBuffer .= "`n" extraMsg
 
     result := MsgBox(strBuffer "`n`nCopy board array to clipboard?", , 4)
 
@@ -66,6 +72,36 @@ isBoardArraySolved(boardArray) {
         }
     }
     return true
+}
+
+isIndexOutOfBounds(boardLength, tileIndex){
+    if(tileIndex > 0 && tileIndex <= boardLength){
+        return false
+    }
+    return true
+}
+
+isMoveDesired(width, tileNum, tileIndex, direction){
+    tileCoords := getTileCoords(tileIndex, width)
+    tileRow := tileCoords[1]
+    tileCol := tileCoords[2]
+    destinationCoords := getTileCoords(tileNum, width)
+    destinationRow := destinationCoords[1]
+    destinationCol := destinationCoords[2]
+    
+    if(direction = UP_DIRECTION && tileRow > destinationRow){
+        return true
+    }
+    if(direction = DOWN_DIRECTION && tileRow < destinationRow){
+        return true
+    }
+    if(direction = LEFT_DIRECTION && tileCol > destinationCol){
+        return true
+    }
+    if(direction = RIGHT_DIRECTION && tileCol < destinationCol){
+        return true
+    }
+    return false
 }
 
 getTileIndex(boardArray, tileNum) {
@@ -86,6 +122,28 @@ getTileCoords(tileIndex, width) {
     }
 
     return [row, col]
+}
+
+getAdjacentTileIndex(width, boardSize, sourceTileIndex, direction){
+    sourceTileCoords := getTileCoords(sourceTileIndex, width)
+    height := boardSize / width
+    if (direction = UP_DIRECTION && sourceTileCoords[1] > 1) {
+        return sourceTileIndex - width
+    }
+    if (direction = DOWN_DIRECTION && sourceTileCoords[1] < height) {
+        return sourceTileIndex + width
+    }
+    if (direction = LEFT_DIRECTION && sourceTileCoords[2] > 1) {
+        return sourceTileIndex - 1
+    }
+    if (direction = RIGHT_DIRECTION && sourceTileCoords[2] < width) {
+        return sourceTileIndex + 1
+    }
+    return false
+}
+
+clonePath(path){
+    return path.Clone()
 }
 
 isRowSolved(boardArray, width, row) {
@@ -125,7 +183,7 @@ getRightMostSolvedCol(boardArray, width) {
     return col - 1
 }
 
-getPossibleMoves(boardArray, width, lastMove, tileToAvoid := 0, isTileBlank := false) {
+getPossibleMoves(boardArray, width, lastMove, tileToAvoid := 0, isTileBlank := true) {
     possibleMoves := []
     height := boardArray.Length / width
 
@@ -177,9 +235,7 @@ getPossibleMoves(boardArray, width, lastMove, tileToAvoid := 0, isTileBlank := f
 getBoardManhattan(boardArray, width) {
     total := 0
     for currentIndex, desiredIndex in boardArray {
-        currentCoords := getTileCoords(currentIndex, width)
-        desiredCoords := getTileCoords(desiredIndex, width)
-        total += Abs(currentCoords[1] - desiredCoords[1]) + Abs(currentCoords[2] - desiredCoords[2])
+        total += getSingleTileManhattan(width, currentIndex, desiredIndex)
     }
     return total
 }
@@ -196,11 +252,33 @@ getOuterManhattan(boardArray, width) {
             tileLocations.Push(currentIndex)
         }
 
-        currentCoords := getTileCoords(currentIndex, width)
-        desiredCoords := getTileCoords(desiredIndex, width)
-        total += Abs(currentCoords[1] - desiredCoords[1]) + Abs(currentCoords[2] - desiredCoords[2])
+        total += getSingleTileManhattan(width, currentIndex, desiredIndex)
     }
     return [total, tileLocations]
+}
+
+;returns: [outerTileBeingMoved, destination, directionOuterTileIsMovingIn]
+getShortTermGoals(boardArray, width, outerManhattanTileIndexes){
+    shortTermGoals := []
+    for i, outerTileIndex in outerManhattanTileIndexes{
+        for j, direction in [UP_DIRECTION, DOWN_DIRECTION, LEFT_DIRECTION, RIGHT_DIRECTION]{
+            adjacentTileIndex := getAdjacentTileIndex(width, boardArray.Length, outerTileIndex, direction)
+            if (!adjacentTileIndex){
+                continue
+            }
+
+            if(isMoveDesired(width, boardArray[outerTileIndex], outerTileIndex, direction)){
+                shortTermGoals.Push([outerTileIndex, adjacentTileIndex, direction])
+            }
+        }
+    }
+    return shortTermGoals
+}
+
+getSingleTileManhattan(width, currentIndex, desiredIndex){
+    currentCoords := getTileCoords(currentIndex, width)
+    desiredCoords := getTileCoords(desiredIndex, width)
+    return Abs(currentCoords[1] - desiredCoords[1]) + Abs(currentCoords[2] - desiredCoords[2])
 }
 
 applyMove(boardArray, width, direction) {
